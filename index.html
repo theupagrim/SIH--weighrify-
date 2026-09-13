@@ -1,0 +1,1150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NAWI Field Verification — OIML R 76</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' fill='%23F1F0EA'/%3E%3Crect x='7' y='23' width='26' height='4' fill='%231B2430'/%3E%3Crect x='18' y='9' width='4' height='14' fill='%231B2430'/%3E%3Crect x='10' y='5' width='20' height='4.5' fill='%232A5C8A'/%3E%3Ccircle cx='20' cy='30.5' r='2.1' fill='none' stroke='%232A5C8A' stroke-width='1.4'/%3E%3C/svg%3E">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/3.4.1/tailwind.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#161C24;
+    --ink-soft:#4A5568;
+    --paper:#EBE8DE;
+    --surface:#FFFFFF;
+    --line:#CBD0C6;
+    --line-soft:#E4E6E0;
+    --steel:#2A5C8A;
+    --steel-dark:#173A5A;
+    --steel-light:#5B8BB5;
+    --steel-tint:#E6EEF5;
+    --brass:#B4841F;
+    --brass-dark:#8A6415;
+    --pass:#276B45;
+    --pass-bg:#E1F0E6;
+    --fail:#A63333;
+    --fail-bg:#FBEAEA;
+    --amber:#9A6A15;
+    --amber-bg:#FBF2E1;
+    --grid-line: rgba(22,28,36,0.07);
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    font-family:'IBM Plex Sans', sans-serif;
+    color:var(--ink);
+    margin:0;
+    background-color:var(--paper);
+    background-image:
+      linear-gradient(var(--grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px),
+      radial-gradient(circle at 100% 0%, rgba(42,92,138,0.10), transparent 55%),
+      radial-gradient(circle at 0% 100%, rgba(180,132,31,0.08), transparent 55%);
+    background-size:24px 24px, 24px 24px, 100% 100%, 100% 100%;
+    background-attachment:fixed;
+    min-height:100vh;
+  }
+  ::selection{background:var(--steel); color:#fff;}
+  .mono{font-family:'IBM Plex Mono', monospace;}
+  .plate{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-left:4px solid var(--steel);
+    position:relative;
+    box-shadow:0 6px 16px rgba(22,28,36,0.08), 0 1px 2px rgba(22,28,36,0.06);
+    border-radius:3px;
+    transition:box-shadow 0.2s ease;
+  }
+  .plate:hover{ box-shadow:0 10px 22px rgba(22,28,36,0.11), 0 1px 2px rgba(22,28,36,0.07); }
+  input, select{
+    font-family:'IBM Plex Mono', monospace;
+    background:var(--surface);
+    border:1.5px solid var(--line);
+    color:var(--ink);
+    padding:8px 10px;
+    font-size:13px;
+    width:100%;
+    border-radius:3px;
+    transition:border-color 0.12s ease, box-shadow 0.12s ease;
+  }
+  input:hover, select:hover{border-color:var(--steel-light);}
+  input:focus, select:focus{
+    outline:none;
+    border-color:var(--steel);
+    box-shadow:0 0 0 4px var(--steel-tint);
+  }
+  input[readonly]{background:#EEF0ED; color:var(--ink-soft);}
+  input[data-numeric], input.mono{
+    letter-spacing:0.02em;
+  }
+  td input[data-numeric], td input[data-w-field], td input[data-e-field], td input[data-rep-field], td input[data-rep-point]{
+    background:#F5F4EF;
+    border-color:var(--line-soft);
+  }
+  td input[data-numeric]:focus, td input[data-w-field]:focus, td input[data-e-field]:focus, td input[data-rep-field]:focus, td input[data-rep-point]:focus{
+    background:var(--surface);
+  }
+  table{border-collapse:collapse; width:100%;}
+  th, td{
+    border:1px solid var(--line);
+    padding:8px 10px;
+    font-size:12.5px;
+    text-align:left;
+    vertical-align:middle;
+  }
+  th{
+    background:var(--ink);
+    font-family:'IBM Plex Mono', monospace;
+    font-weight:600;
+    font-size:10.5px;
+    letter-spacing:0.04em;
+    color:#CFE0EE;
+  }
+  tbody tr:nth-child(even) td{background:#F7F6F1;}
+  tbody tr:hover td{background:var(--steel-tint);}
+  .stepper{
+    display:flex;
+    align-items:center;
+    overflow-x:auto;
+    padding:14px 10px 0 10px;
+  }
+  .stepper::-webkit-scrollbar{ height:0; }
+  .step-btn{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:0 10px 14px 10px;
+    background:transparent;
+    border:none;
+    cursor:pointer;
+    white-space:nowrap;
+    flex:0 0 auto;
+  }
+  .step-dot{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11.5px;
+    font-weight:700;
+    width:24px; height:24px;
+    border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    border:1.5px solid var(--line);
+    background:var(--surface);
+    color:var(--ink-soft);
+    transition:background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+    flex:0 0 auto;
+  }
+  .step-dot svg{ width:12px; height:12px; }
+  .step-label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11.5px;
+    letter-spacing:0.02em;
+    color:var(--ink-soft);
+    transition:color 0.15s ease;
+  }
+  .step-btn.done .step-dot{ background:var(--steel-tint); border-color:var(--steel); color:var(--steel-dark); }
+  .step-btn.done .step-label{ color:var(--ink); }
+  .step-btn.active .step-dot{
+    background:var(--steel);
+    border-color:var(--steel);
+    color:#fff;
+    box-shadow:0 0 0 4px var(--steel-tint);
+  }
+  .step-btn.active .step-label{ color:var(--ink); font-weight:600; }
+  .step-btn:hover .step-label{ color:var(--ink); }
+  .step-line{
+    flex:1 1 28px;
+    min-width:16px;
+    height:1.5px;
+    background:var(--line);
+    margin-bottom:14px;
+    transition:background-color 0.2s ease;
+  }
+  .step-line.filled{ background:var(--steel); }
+  .btn{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    padding:9px 16px;
+    border:1px solid var(--ink);
+    background:var(--ink);
+    color:var(--surface);
+    cursor:pointer;
+    border-radius:3px;
+    transition:background-color 0.12s ease, border-color 0.12s ease, transform 0.05s ease, box-shadow 0.12s ease;
+    box-shadow:0 2px 4px rgba(22,28,36,0.15);
+  }
+  .btn:hover{background:var(--steel-dark); border-color:var(--steel-dark); box-shadow:0 3px 8px rgba(22,28,36,0.25);}
+  .btn:active{transform:translateY(1px); box-shadow:none;}
+  .btn-ghost{
+    background:var(--surface);
+    color:var(--ink);
+    border:1.5px solid var(--line);
+    box-shadow:none;
+  }
+  .btn-ghost:hover{border-color:var(--steel); background:var(--steel-tint); color:var(--steel-dark);}
+  .btn-danger{
+    background:transparent;
+    color:var(--fail);
+    border:1.5px solid var(--fail);
+    box-shadow:none;
+  }
+  .btn-danger:hover{background:var(--fail); color:#fff;}
+  .status-pass{background:var(--pass-bg); color:var(--pass); font-weight:600;}
+  .status-fail{background:var(--fail-bg); color:var(--fail); font-weight:600;}
+  .status-pending{background:#EEF0ED; color:var(--ink-soft);}
+  .field-label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10.5px;
+    letter-spacing:0.03em;
+    color:var(--ink-soft);
+    display:block;
+    margin-bottom:3px;
+  }
+  .section-num{
+    font-family:'IBM Plex Mono', monospace;
+    color:#fff;
+    background:var(--steel);
+    font-size:12px;
+    font-weight:700;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:24px;
+    height:24px;
+    border-radius:4px;
+    margin-right:8px;
+    box-shadow:0 2px 4px rgba(42,92,138,0.35);
+  }
+
+  .topbar{
+    background:
+      repeating-linear-gradient(100deg, rgba(255,255,255,0.025) 0, rgba(255,255,255,0.025) 1px, transparent 1px, transparent 4px),
+      linear-gradient(135deg, var(--ink) 0%, #202B38 100%);
+    border-bottom:3px solid var(--steel);
+    box-shadow:0 4px 14px rgba(22,28,36,0.22);
+    position:relative;
+  }
+  .topbar .brand-title{ color:#FFFFFF; }
+  .topbar .cert-ref{ color:#8FA9BF; }
+  .logo-mark{
+    flex:0 0 auto;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    width:42px;
+    height:42px;
+    background:linear-gradient(160deg, var(--steel-light), var(--steel-dark));
+    border-radius:6px;
+    box-shadow:0 3px 8px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.2);
+  }
+  .brand-title{
+    font-weight:700;
+    letter-spacing:-0.01em;
+    font-size:15.5px;
+    line-height:1.2;
+  }
+
+  .verdict-banner{
+    position:relative;
+    border:1.5px solid currentColor;
+    border-radius:4px;
+    padding:20px 24px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:18px;
+  }
+  .verdict-banner.status-pass{ background:linear-gradient(135deg, var(--pass-bg), #F2FAF4); }
+  .verdict-banner.status-fail{ background:linear-gradient(135deg, var(--fail-bg), #FDF3F3); }
+  .verdict-banner .verdict-text{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:22px;
+    font-weight:700;
+    letter-spacing:0.05em;
+  }
+
+  .seal{
+    flex:0 0 auto;
+    width:60px;
+    height:60px;
+    border-radius:50%;
+    border:2.5px solid currentColor;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    position:relative;
+    background:rgba(255,255,255,0.5);
+  }
+  .seal::before{
+    content:'';
+    position:absolute;
+    inset:5px;
+    border:1px dashed currentColor;
+    border-radius:50%;
+    opacity:0.55;
+  }
+  .seal svg{ width:24px; height:24px; }
+
+  .report-paper{
+    position:relative;
+    overflow:hidden;
+  }
+  .report-paper::after{
+    content:'';
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+    background-image:
+      repeating-linear-gradient(45deg, rgba(42,92,138,0.045) 0, rgba(42,92,138,0.045) 1px, transparent 1px, transparent 14px);
+    z-index:0;
+  }
+  .report-paper > *{ position:relative; z-index:1; }
+
+  .section-heading{
+    display:flex;
+    align-items:center;
+    padding-bottom:8px;
+    border-bottom:1px solid var(--line);
+  }
+  .field-label{
+    border-left:2px solid var(--line);
+    padding-left:6px;
+  }
+
+  .lcd-display{
+    font-family:'IBM Plex Mono', monospace;
+    background:#0B0F14;
+    border:1px solid #000;
+    border-radius:4px;
+    padding:7px 14px;
+    font-weight:700;
+    font-size:12.5px;
+    letter-spacing:0.09em;
+    box-shadow: inset 0 2px 5px rgba(0,0,0,0.65), 0 1px 0 rgba(255,255,255,0.06);
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+  }
+  .lcd-display .lcd-dot{
+    width:6px; height:6px; border-radius:50%;
+    background:currentColor;
+    box-shadow:0 0 6px currentColor;
+    flex:0 0 auto;
+  }
+  .lcd-pass{ color:#4ADE80; text-shadow:0 0 8px rgba(74,222,128,0.6); }
+  .lcd-fail{ color:#FF6B6B; text-shadow:0 0 8px rgba(255,107,107,0.6); }
+  .lcd-pending{ color:#F0B429; text-shadow:0 0 8px rgba(240,180,41,0.45); }
+  .lcd-pending .lcd-dot{ animation:lcd-blink 1.4s ease-in-out infinite; }
+  .lcd-none{ color:#57626F; text-shadow:none; }
+  @keyframes lcd-blink{ 0%,100%{opacity:1;} 50%{opacity:0.35;} }
+
+  .seal{ animation:seal-drop 0.4s cubic-bezier(.2,1.4,.4,1) both; }
+  @keyframes seal-drop{
+    from{ opacity:0; transform:scale(1.5) rotate(-8deg); }
+    to{ opacity:1; transform:scale(1) rotate(0deg); }
+  }
+
+  #app{ animation:app-reveal 0.45s ease both; }
+  @keyframes app-reveal{
+    from{ opacity:0; transform:translateY(8px); }
+    to{ opacity:1; transform:translateY(0); }
+  }
+  @media (prefers-reduced-motion: reduce){
+    #app, .seal, .lcd-pending .lcd-dot{ animation:none !important; }
+    html{ scroll-behavior:auto; }
+    *{ transition-duration:0.001ms !important; }
+  }
+
+  .bracket-frame{ position:relative; }
+  .bracket-frame::before{
+    content:'';
+    position:absolute; top:-2px; left:10px;
+    width:16px; height:16px;
+    border-top:2px solid var(--brass);
+    border-left:2px solid var(--brass);
+    pointer-events:none;
+  }
+  .bracket-frame::after{
+    content:'';
+    position:absolute; bottom:-2px; right:10px;
+    width:16px; height:16px;
+    border-bottom:2px solid var(--brass);
+    border-right:2px solid var(--brass);
+    pointer-events:none;
+  }
+
+  .rivet{
+    width:6px; height:6px;
+    border-radius:50%;
+    background:radial-gradient(circle at 35% 35%, #7C90A0, #1A222C);
+    box-shadow:0 1px 1px rgba(0,0,0,0.6), inset 0 0 1px rgba(255,255,255,0.3);
+    flex:0 0 auto;
+  }
+
+  .subpanel{
+    padding:14px 16px;
+    border-radius:4px;
+    border:1px solid var(--line);
+  }
+  .subpanel-steel{ background:var(--steel-tint); border-color:#C9DCEA; }
+  .subpanel-amber{ background:var(--amber-bg); border-color:#EBD9AF; }
+
+  .callout{
+    display:flex;
+    align-items:flex-start;
+    gap:10px;
+    border-radius:3px;
+  }
+  .callout svg{ flex:0 0 auto; margin-top:1px; }
+
+  @media print{
+    body{background:#fff; background-image:none;}
+    .no-print{display:none !important;}
+    .plate{border:1px solid #999; border-left:1px solid #999; box-shadow:none;}
+    .topbar{background:#fff !important; border-bottom:1px solid #999;}
+    .topbar .brand-title{color:#000;}
+    .topbar .cert-ref{color:#555;}
+    .page-break{page-break-before:always;}
+    .report-paper::after{opacity:0.6;}
+    .bracket-frame::before, .bracket-frame::after{border-color:#999;}
+  }
+</style>
+
+</head>
+<body>
+
+<div id="app"></div>
+
+<script>
+const MPE_TABLE = {
+  'I':    [ {upTo: 50000,   mult: 0.5}, {upTo: 200000,  mult: 1.0}, {upTo: Infinity, mult: 1.5} ],
+  'II':   [ {upTo: 5000,    mult: 0.5}, {upTo: 20000,   mult: 1.0}, {upTo: 100000,   mult: 1.5} ],
+  'III':  [ {upTo: 500,     mult: 0.5}, {upTo: 2000,    mult: 1.0}, {upTo: 10000,    mult: 1.5} ],
+  'IIII': [ {upTo: 50,      mult: 0.5}, {upTo: 200,     mult: 1.0}, {upTo: 1000,     mult: 1.5} ],
+};
+
+function parseNum(v){
+  if(v === null || v === undefined || v === '') return null;
+  const n = Number(v);
+  return isNaN(n) ? null : n;
+}
+
+function computeMPE(accClass, loadMass, eVal, mode){
+  const e = parseNum(eVal);
+  const load = parseNum(loadMass);
+  if(!e || e <= 0 || !accClass || load === null) return null;
+  const loadInE = load / e;
+  const table = MPE_TABLE[accClass];
+  if(!table) return null;
+  let mult = table[table.length-1].mult;
+  for(const row of table){
+    if(loadInE <= row.upTo){ mult = row.mult; break; }
+  }
+  if(mode === 'inservice') mult = mult * 2;
+  return { mult, mpe: mult * e, loadInE };
+}
+
+function fmtFixed(n, d=3){
+  const val = parseNum(n);
+  if(val === null) return '—';
+  return val.toFixed(d);
+}
+
+function uid(){ return 'r'+Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+
+function sanitizeDecimal(str){
+  let cleaned = String(str).replace(/[^0-9.]/g, '');
+  const firstDot = cleaned.indexOf('.');
+  if(firstDot !== -1){
+    cleaned = cleaned.slice(0, firstDot+1) + cleaned.slice(firstDot+1).replace(/\./g, '');
+  }
+  return cleaned;
+}
+
+function clampReadingsCount(n){
+  const num = parseNum(n);
+  if(!num) return 5;
+  return Math.max(3, Math.min(10, Math.round(num)));
+}
+
+function freshState(){
+  return {
+    id: uid(),
+    header: {
+      inspector:'', date: new Date().toISOString().slice(0,10), certNo:'',
+      manufacturer:'', model:'', serial:'',
+      accClass:'III', mode:'initial',
+      max:'150', e:'0.05', d:'0.05', min:'1',
+    },
+    weighing: defaultWeighingRows(),
+    eccentricity: defaultEccRows(),
+    repeatability: {
+      p50: { load: '', n: '5', readings: Array(10).fill('') },
+      p100: { load: '', n: '5', readings: Array(10).fill('') },
+    },
+  };
+}
+
+function defaultWeighingRows(){
+  return [
+    { id: uid(), label:'Min', targetMode:'min', target:'', indInc:'', indDec:'' },
+    { id: uid(), label:'500 e', targetMode:'e500', target:'', indInc:'', indDec:'' },
+    { id: uid(), label:'2000 e', targetMode:'e2000', target:'', indInc:'', indDec:'' },
+    { id: uid(), label:'50% Max', targetMode:'half', target:'', indInc:'', indDec:'' },
+    { id: uid(), label:'100% Max', targetMode:'full', target:'', indInc:'', indDec:'' },
+  ];
+}
+function defaultEccRows(){
+  return [
+    { id: uid(), label:'Center (reference)', target:'', indication:'', isRef:true },
+    { id: uid(), label:'Corner 1 (front-left)', target:'', indication:'', isRef:false },
+    { id: uid(), label:'Corner 2 (front-right)', target:'', indication:'', isRef:false },
+    { id: uid(), label:'Corner 3 (rear-left)', target:'', indication:'', isRef:false },
+    { id: uid(), label:'Corner 4 (rear-right)', target:'', indication:'', isRef:false },
+  ];
+}
+
+let state = freshState();
+let activeTab = 'setup';
+
+function resolveTargetForRow(row, header){
+  if(row.target !== '') return parseNum(row.target);
+  const min = parseNum(header.min);
+  const e = parseNum(header.e);
+  const max = parseNum(header.max);
+  
+  let calculatedTarget = null;
+  switch(row.targetMode){
+    case 'min': calculatedTarget = min; break;
+    case 'e500': calculatedTarget = e ? 500*e : null; break;
+    case 'e2000': calculatedTarget = e ? 2000*e : null; break;
+    case 'half': calculatedTarget = max ? max*0.5 : null; break;
+    case 'full': calculatedTarget = max; break;
+    default: calculatedTarget = null;
+  }
+
+  // Cap load at Max capacity if non-zero max exists
+  if(calculatedTarget !== null && max !== null && max > 0 && calculatedTarget > max){
+    calculatedTarget = max;
+  }
+  
+  return calculatedTarget;
+}
+
+function evalWeighing(){
+  const h = state.header;
+  return state.weighing.map(row=>{
+    const target = resolveTargetForRow(row, h);
+    const mpeInfo = computeMPE(h.accClass, target, h.e, h.mode);
+    const incVal = parseNum(row.indInc);
+    const decVal = parseNum(row.indDec);
+    const errInc = (incVal !== null && target !== null) ? (incVal - target) : null;
+    const errDec = (decVal !== null && target !== null) ? (decVal - target) : null;
+    let status = 'pending';
+    if(mpeInfo && (errInc !== null || errDec !== null)){
+      const okInc = errInc === null || Math.abs(errInc) <= mpeInfo.mpe + 1e-9;
+      const okDec = errDec === null || Math.abs(errDec) <= mpeInfo.mpe + 1e-9;
+      status = (okInc && okDec) ? 'pass' : 'fail';
+    }
+    return { ...row, target, mpeInfo, errInc, errDec, status };
+  });
+}
+
+function evalEccentricity(){
+  const h = state.header;
+  const rows = state.eccentricity;
+  const ref = rows.find(r=>r.isRef);
+  return rows.map(row=>{
+    const rawTarget = row.target !== '' ? row.target : (ref ? ref.target : '');
+    const target = parseNum(rawTarget);
+    const mpeInfo = computeMPE(h.accClass, target, h.e, h.mode);
+    const indVal = parseNum(row.indication);
+    let err = null, status = 'pending';
+    if(row.isRef){
+      status = 'pending';
+    } else if(indVal !== null && target !== null){
+      err = indVal - target;
+      if(mpeInfo){
+        status = Math.abs(err) <= mpeInfo.mpe + 1e-9 ? 'pass' : 'fail';
+      }
+    }
+    return { ...row, target, mpeInfo, err, status };
+  });
+}
+
+function evalRepeat(point){
+  const h = state.header;
+  const n = clampReadingsCount(point.n);
+  const target = parseNum(point.load);
+  const mpeInfo = computeMPE(h.accClass, target, h.e, h.mode);
+  const vals = point.readings.slice(0, n).map(parseNum).filter(v => v !== null);
+  let range = null, status = 'pending';
+  if(vals.length >= 2){
+    range = Math.max(...vals) - Math.min(...vals);
+    if(mpeInfo) status = range <= mpeInfo.mpe + 1e-9 ? 'pass' : 'fail';
+  }
+  return { target, mpeInfo, vals, range, status, n };
+}
+
+const WEIGHING_MERGE_PAIRS = [
+  ['e500', 'half'],   // "500 e" collapses into "50% Max" when they coincide
+  ['e2000', 'full'],  // "2000 e" collapses into "100% Max" when they coincide
+];
+
+function mergeRowPairForDisplay(rows, modeA, modeB){
+  const rowA = rows.find(r=>r.targetMode===modeA);
+  const rowB = rows.find(r=>r.targetMode===modeB);
+  if(!rowA || !rowB) return rows;
+
+  const sameTarget = rowA.target !== null && rowB.target !== null &&
+    Math.abs(rowA.target - rowB.target) < 1e-9;
+  if(!sameTarget) return rows;
+
+  const rawA = state.weighing.find(x=>x.id===rowA.id);
+  const rawB = state.weighing.find(x=>x.id===rowB.id);
+  const bHasData = !!rawB && (rawB.indInc !== '' || rawB.indDec !== '');
+  const aHasData = !!rawA && (rawA.indInc !== '' || rawA.indDec !== '');
+  // Prefer whichever row already has readings entered, defaulting to rowB
+  // (the higher-order test point) so its evaluation is what's shown.
+  const evalSource = (bHasData || !aHasData) ? rowB : rowA;
+
+  const mergedRow = {
+    ...evalSource,
+    id: rowB.id,
+    label: `${rowA.label} = ${rowB.label}`,
+    merged: true,
+    mergeNote: `${rowA.label} coincides with ${rowB.label} — combined row`,
+    primaryRawId: evalSource.id,
+  };
+
+  return rows
+    .filter(r => r.id !== rowA.id)
+    .map(r => r.id === rowB.id ? mergedRow : r);
+}
+
+function mergeWeighingRowsForDisplay(rows){
+  // Two test points that resolve to the same load (e.g. 500e >= 50% Max, or
+  // 2000e >= Max) represent the exact same physical test. Collapse each such
+  // pair into a single displayed row; pairs that differ stay separate.
+  return WEIGHING_MERGE_PAIRS.reduce((acc, [a,b]) => mergeRowPairForDisplay(acc, a, b), rows);
+}
+
+function overallStatus(){
+  const w = mergeWeighingRowsForDisplay(evalWeighing());
+  const ecc = evalEccentricity().filter(r=>!r.isRef);
+  const r50 = evalRepeat(state.repeatability.p50);
+  const r100 = evalRepeat(state.repeatability.p100);
+  const all = [...w, ...ecc, r50, r100];
+  const anyFail = all.some(r=>r.status==='fail');
+  const anyPending = all.some(r=>r.status==='pending');
+  const anyEvaluated = all.some(r=>r.status==='pass' || r.status==='fail');
+  if(anyFail) return 'fail';
+  if(!anyEvaluated) return 'none';
+  if(anyPending) return 'partial';
+  return 'pass';
+}
+
+const app = document.getElementById('app');
+
+function render(){
+  app.innerHTML = `
+    ${renderTopBar()}
+    <div class="max-w-6xl mx-auto px-4 pb-16 pt-2 bracket-frame">
+      ${renderTabs()}
+      <div class="mt-4">
+        ${ activeTab==='setup' ? renderSetup() :
+           activeTab==='weighing' ? renderWeighing() :
+           activeTab==='eccentricity' ? renderEccentricity() :
+           activeTab==='repeatability' ? renderRepeatability() :
+           activeTab==='report' ? renderReport() : '' }
+      </div>
+    </div>
+  `;
+  attachHandlers();
+}
+
+function renderTopBar(){
+  const st = overallStatus();
+  const lcdClass = st==='pass' ? 'lcd-pass' : st==='fail' ? 'lcd-fail' : st==='partial' ? 'lcd-pending' : 'lcd-none';
+  const lcdText = st==='pass' ? 'PASS' : st==='fail' ? 'FAIL' : st==='partial' ? 'IN PROGRESS' : '— — —';
+  const badge = `<span class="lcd-display ${lcdClass}"><span class="lcd-dot"></span>${lcdText}</span>`;
+  const logoSvg = `
+    <svg viewBox="0 0 40 40" width="22" height="22" xmlns="http://www.w3.org/2000/svg">
+      <rect x="7" y="23" width="26" height="4" fill="#F1F0EA"/>
+      <rect x="18" y="9" width="4" height="14" fill="#F1F0EA"/>
+      <rect x="10" y="5" width="20" height="4.5" fill="#6FA0C7"/>
+      <circle cx="20" cy="30.5" r="2.1" fill="none" stroke="#6FA0C7" stroke-width="1.4"/>
+    </svg>`;
+  return `
+  <div class="topbar">
+    <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between flex-wrap gap-3">
+      <div class="flex items-center gap-2">
+        <span class="rivet no-print"></span>
+        <div class="flex items-center gap-3">
+          <div class="logo-mark">${logoSvg}</div>
+          <div>
+            <div class="brand-title">NAWI Field Verification</div>
+            <div class="mono text-[11px] cert-ref">OIML R 76-1 · Cert ${state.header.certNo || '—'}</div>
+          </div>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        ${badge}
+        <div class="flex items-center gap-2 no-print">
+          <button data-action="new" class="btn-ghost btn">Reset Form</button>
+        </div>
+        <span class="rivet no-print"></span>
+      </div>
+    </div>
+  </div>`;
+}
+
+function tabCompletion(){
+  const h = state.header;
+  const setupDone = parseNum(h.max) > 0 && parseNum(h.e) > 0 && parseNum(h.min) !== null;
+  const w = mergeWeighingRowsForDisplay(evalWeighing());
+  const weighingDone = w.length > 0 && w.every(r=>r.status!=='pending');
+  const ecc = evalEccentricity().filter(r=>!r.isRef);
+  const eccentricityDone = ecc.length > 0 && ecc.every(r=>r.status!=='pending');
+  const r50 = evalRepeat(state.repeatability.p50);
+  const r100 = evalRepeat(state.repeatability.p100);
+  const repeatabilityDone = r50.status!=='pending' && r100.status!=='pending';
+  return { setup:setupDone, weighing:weighingDone, eccentricity:eccentricityDone, repeatability:repeatabilityDone, report:false };
+}
+
+const CHECK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6"/></svg>';
+
+function renderTabs(){
+  const tabs = [
+    ['setup','Setup'],
+    ['weighing','Weighing'],
+    ['eccentricity','Eccentricity'],
+    ['repeatability','Repeatability'],
+    ['report','Report'],
+  ];
+  const done = tabCompletion();
+  const activeIdx = tabs.findIndex(([key])=>key===activeTab);
+  return `<div class="no-print stepper" style="border-bottom:1px solid var(--line); background:var(--surface);">
+    ${tabs.map(([key,label],i)=>{
+      const isActive = key===activeTab;
+      const isDone = done[key] && !isActive;
+      const cls = isActive ? 'active' : (isDone ? 'done' : '');
+      const dotContent = isDone ? CHECK_SVG : String(i+1);
+      const btn = `<button data-tab="${key}" class="step-btn ${cls}">
+        <span class="step-dot">${dotContent}</span>
+        <span class="step-label">${label}</span>
+      </button>`;
+      const lineFilled = i < tabs.length-1 && (i < activeIdx || done[key]);
+      const line = i < tabs.length-1 ? `<span class="step-line ${lineFilled?'filled':''}"></span>` : '';
+      return btn + line;
+    }).join('')}
+  </div>`;
+}
+
+function field(label, name, value, opts={}){
+  const isNumeric = opts.type === 'number';
+  const type = isNumeric ? 'text' : (opts.type || 'text');
+  const inputmode = isNumeric ? 'inputmode="decimal"' : '';
+  const numericAttr = isNumeric ? 'data-numeric="1"' : '';
+  const v = value === null || value === undefined ? '' : value;
+  if(opts.select){
+    return `<div>
+      <label class="field-label">${label}</label>
+      <select data-field="${name}" data-group="${opts.group||''}">
+        ${opts.select.map(o=>`<option value="${o}" ${o===value?'selected':''}>${opts.labels ? opts.labels[o] : o}</option>`).join('')}
+      </select>
+    </div>`;
+  }
+  return `<div>
+    <label class="field-label">${label}</label>
+    <input type="${type}" ${inputmode} ${numericAttr} data-field="${name}" data-group="${opts.group||''}" value="${v}" placeholder="${opts.placeholder||''}">
+  </div>`;
+}
+
+function renderSetup(){
+  const h = state.header;
+  const max = parseNum(h.max);
+  const e = parseNum(h.e);
+  return `
+  <div class="plate p-5">
+    <div class="mb-4 section-heading"><span class="section-num">1</span> <span class="text-sm font-semibold">Inspector &amp; Certificate</span></div>
+    <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+      ${field('Inspector name','inspector',h.inspector,{group:'header'})}
+      ${field('Inspection date','date',h.date,{type:'date',group:'header'})}
+      ${field('Certificate no.','certNo',h.certNo,{group:'header'})}
+    </div>
+
+    <div class="mt-6 mb-4 section-heading"><span class="section-num">2</span> <span class="text-sm font-semibold">Instrument Identification</span></div>
+    <div class="subpanel subpanel-steel grid grid-cols-2 md:grid-cols-3 gap-3">
+      ${field('Manufacturer','manufacturer',h.manufacturer,{group:'header'})}
+      ${field('Model','model',h.model,{group:'header'})}
+      ${field('Serial number','serial',h.serial,{group:'header'})}
+    </div>
+
+    <div class="mt-6 mb-4 section-heading"><span class="section-num">3</span> <span class="text-sm font-semibold">Metrological Specifications</span></div>
+    <div class="subpanel subpanel-amber grid grid-cols-2 md:grid-cols-3 gap-3">
+      ${field('Accuracy class','accClass',h.accClass,{group:'header', select:['I','II','III','IIII']})}
+      ${field('Verification mode','mode',h.mode,{group:'header', select:['initial','inservice'], labels:{initial:'Initial verification', inservice:'In-service inspection'}})}
+      <div></div>
+      ${field('Capacity — Max (kg)','max',h.max,{type:'number',group:'header'})}
+      ${field('Verification scale interval — e (kg)','e',h.e,{type:'number',group:'header'})}
+      ${field('Scale interval — d (kg)','d',h.d,{type:'number',group:'header'})}
+      ${field('Minimum capacity — Min (kg)','min',h.min,{type:'number',group:'header'})}
+    </div>
+
+    <div class="mt-6 p-3 callout" style="background:var(--amber-bg); border:1px solid var(--amber); color:var(--amber); font-size:12.5px;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12.5"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <div>Max/e = ${max && e ? Math.round(max/e) : '—'} scale intervals. MPE bands are read from the OIML R 76 table for Class ${h.accClass} using load expressed as a multiple of e, then doubled for in-service inspection.</div>
+    </div>
+  </div>`;
+}
+
+function mpeCell(mpeInfo){
+  if(!mpeInfo) return '<td class="mono text-center" style="color:var(--ink-soft);">—</td>';
+  return `<td class="mono text-center">±${fmtFixed(mpeInfo.mpe, 4)}<div style="color:var(--ink-soft); font-size:10px;">(${mpeInfo.mult}e)</div></td>`;
+}
+
+function statusCell(status){
+  const map = {
+    pass: '<td class="text-center status-pass">PASS</td>',
+    fail: '<td class="text-center status-fail">FAIL</td>',
+    pending: '<td class="text-center status-pending">—</td>',
+  };
+  return map[status] || map.pending;
+}
+
+function renderWeighing(){
+  const rows = mergeWeighingRowsForDisplay(evalWeighing());
+  return `
+  <div class="plate p-5">
+    <div class="mb-3 pb-3 section-heading"><span class="section-num">4</span> <span class="text-sm font-semibold">Weighing Performance — Increasing &amp; Decreasing Load</span></div>
+    <div class="text-xs mb-4" style="color:var(--ink-soft);">Enter target test load and indication in each direction. Loads exceeding Max are automatically capped at capacity limit. When a fractional test point (500e or 2000e) coincides with 50% or 100% Max, the two are combined into a single row.</div>
+    <div class="overflow-x-auto">
+    <table>
+      <thead><tr>
+        <th>Test point</th><th>Target load (kg)</th><th>Indication ↑ (kg)</th><th>Indication ↓ (kg)</th>
+        <th>Error ↑</th><th>Error ↓</th><th>Allowed MPE</th><th>Status</th><th class="no-print"></th>
+      </tr></thead>
+      <tbody>
+      ${rows.map(r=>{
+        const raw = state.weighing.find(x=>x.id===(r.primaryRawId||r.id)) || {target:'',indInc:'',indDec:''};
+        const labelCell = r.merged
+          ? `<td class="mono" style="font-weight:600;">${r.label}<div style="font-weight:400; color:var(--ink-soft); font-size:10px;">${r.mergeNote}</div></td>`
+          : `<td><input data-w-field="label" data-w-id="${r.id}" value="${r.label}"></td>`;
+        const delCell = r.merged
+          ? `<td class="no-print text-center"></td>`
+          : `<td class="no-print text-center"><button data-action="delWeighRow" data-w-id="${r.id}" class="btn-danger btn" style="padding:2px 8px;">×</button></td>`;
+        return `
+        <tr>
+          ${labelCell}
+          <td><input type="text" inputmode="decimal" data-numeric="1" data-w-field="target" data-w-id="${r.id}" value="${raw.target}" placeholder="${r.target !== null ? fmtFixed(r.target, 3) : 'auto'}"></td>
+          <td><input type="text" inputmode="decimal" data-numeric="1" data-w-field="indInc" data-w-id="${r.id}" value="${raw.indInc}"></td>
+          <td><input type="text" inputmode="decimal" data-numeric="1" data-w-field="indDec" data-w-id="${r.id}" value="${raw.indDec}"></td>
+          <td class="mono text-center">${fmtFixed(r.errInc,4)}</td>
+          <td class="mono text-center">${fmtFixed(r.errDec,4)}</td>
+          ${mpeCell(r.mpeInfo)}
+          ${statusCell(r.status)}
+          ${delCell}
+        </tr>`;
+      }).join('')}
+      </tbody>
+    </table>
+    </div>
+    <div class="mt-3 no-print">
+      <button data-action="addWeighRow" class="btn-ghost btn">+ Add test load</button>
+    </div>
+  </div>`;
+}
+
+function renderEccentricity(){
+  const rows = evalEccentricity();
+  const max = parseNum(state.header.max);
+  return `
+  <div class="plate p-5">
+    <div class="mb-3 pb-3 section-heading"><span class="section-num">5</span> <span class="text-sm font-semibold">Eccentricity (Corner Load) Test</span></div>
+    <div class="text-xs mb-4" style="color:var(--ink-soft);">Apply approximately 1/3 of Max at the centre and at each corner. Each corner's indication is checked against the target load and the MPE for that load.</div>
+    <div class="overflow-x-auto">
+    <table>
+      <thead><tr>
+        <th>Position</th><th>Target load (kg)</th><th>Indication (kg)</th><th>Error</th><th>Allowed MPE</th><th>Status</th>
+      </tr></thead>
+      <tbody>
+      ${rows.map((r,i)=>`
+        <tr>
+          <td>${r.label}${r.isRef?' <span class="mono text-[10px]" style="color:var(--ink-soft);">(sets default target)</span>':''}</td>
+          <td><input type="text" inputmode="decimal" data-numeric="1" data-e-field="target" data-e-id="${r.id}" value="${state.eccentricity[i].target}" placeholder="${r.isRef ? (max ? (max/3).toFixed(3) : '') : 'uses center'}"></td>
+          <td><input type="text" inputmode="decimal" data-numeric="1" data-e-field="indication" data-e-id="${r.id}" value="${state.eccentricity[i].indication}" ${r.isRef?'placeholder="reference reading"':''}></td>
+          <td class="mono text-center">${r.isRef?'—':fmtFixed(r.err,4)}</td>
+          ${r.isRef? '<td class="text-center" style="color:var(--ink-soft);">—</td>' : mpeCell(r.mpeInfo)}
+          ${r.isRef? '<td class="text-center status-pending">REF</td>' : statusCell(r.status)}
+        </tr>`).join('')}
+      </tbody>
+    </table>
+    </div>
+  </div>`;
+}
+
+function renderRepeatPoint(key, title, defaultLoad){
+  const point = state.repeatability[key];
+  const r = evalRepeat(point);
+  const nRaw = point.n;
+  const nCells = Math.max(1, Math.min(10, parseNum(nRaw) || 5));
+  let cells = '';
+  for(let i=0; i<10; i++){
+    if(i < nCells){
+      cells += `<td><input type="text" inputmode="decimal" data-numeric="1" data-rep-point="${key}" data-rep-idx="${i}" value="${point.readings[i]}"></td>`;
+    }
+  }
+  return `
+  <div class="plate p-5 mb-5">
+    <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
+      <div class="text-sm font-semibold">${title}</div>
+      <div class="flex items-center gap-3">
+        <label class="field-label mb-0">Target load (kg)</label>
+        <input style="width:110px" type="text" inputmode="decimal" data-numeric="1" data-rep-field="load" data-rep-point="${key}" value="${point.load}" placeholder="${defaultLoad}">
+        <label class="field-label mb-0">Readings (3–10)</label>
+        <input style="width:70px" type="text" inputmode="numeric" data-numeric="1" data-rep-field="n" data-rep-point="${key}" value="${nRaw}">
+      </div>
+    </div>
+    <div class="overflow-x-auto">
+    <table>
+      <thead><tr>${Array.from({length:nCells}).map((_,i)=>`<th>#${i+1}</th>`).join('')}</tr></thead>
+      <tbody><tr>${cells}</tr></tbody>
+    </table>
+    </div>
+    <div class="mt-3 flex flex-wrap gap-6 text-xs mono">
+      <div>I<sub>max</sub> − I<sub>min</sub> = <strong>${fmtFixed(r.range,4)}</strong></div>
+      <div>Allowed MPE = ${r.mpeInfo? '±'+fmtFixed(r.mpeInfo.mpe,4) : '—'}</div>
+      <div>${ r.status==='pass' ? '<span class="status-pass px-2 py-0.5">PASS</span>' : r.status==='fail' ? '<span class="status-fail px-2 py-0.5">FAIL</span>' : '<span class="status-pending px-2 py-0.5">—</span>' }</div>
+    </div>
+  </div>`;
+}
+
+function renderRepeatability(){
+  const max = parseNum(state.header.max);
+  const half = max ? (max*0.5).toFixed(3) : '';
+  const full = max ? max.toFixed(3) : '';
+  return `
+  <div class="mb-3 pb-3 section-heading"><span class="section-num">6</span> <span class="text-sm font-semibold">Repeatability</span></div>
+  <div class="text-xs mb-4" style="color:var(--ink-soft);">Take 3 to 10 consecutive readings at the same load without removing it. The spread (max − min) must not exceed the MPE for that load.</div>
+  ${renderRepeatPoint('p50', 'Repeatability at ≈ 50% Max', half)}
+  ${renderRepeatPoint('p100', 'Repeatability at ≈ 100% Max', full)}
+  `;
+}
+
+function renderReport(){
+  const h = state.header;
+  const w = mergeWeighingRowsForDisplay(evalWeighing());
+  const ecc = evalEccentricity();
+  const r50 = evalRepeat(state.repeatability.p50);
+  const r100 = evalRepeat(state.repeatability.p100);
+  const st = overallStatus();
+  const bannerClass = st==='pass' ? 'status-pass' : st==='fail' ? 'status-fail' : 'status-pending';
+  const bannerText = st==='pass' ? 'PASSED' : st==='fail' ? 'FAILED' : st==='partial' ? 'INCOMPLETE' : 'NOT EVALUATED';
+
+  return `
+  <div class="plate p-6 report-paper">
+    <div class="flex items-center justify-between flex-wrap gap-3 mb-6 no-print">
+      <div class="text-sm" style="color:var(--ink-soft);">Printable inspection report</div>
+      <button data-action="print" class="btn">Print / Save as PDF</button>
+    </div>
+
+    <div class="text-center mb-6">
+      <div class="text-lg font-semibold tracking-tight">Non-Automatic Weighing Instrument — Verification Report</div>
+      <div class="mono text-xs" style="color:var(--ink-soft);">In accordance with OIML R 76-1</div>
+    </div>
+
+    <div class="verdict-banner ${bannerClass} mb-6">
+      ${ (st==='pass' || st==='fail') ? `
+      <div class="seal" style="color:${st==='pass' ? 'var(--pass)' : 'var(--fail)'};">
+        ${ st==='pass'
+          ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6"/></svg>`
+          : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5l14 14M19 5L5 19"/></svg>` }
+      </div>` : '' }
+      <div class="verdict-text">${bannerText}</div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-x-8 gap-y-1 text-sm mb-6">
+      <div><span style="color:var(--ink-soft)">Certificate no.</span> ${h.certNo||'—'}</div>
+      <div><span style="color:var(--ink-soft)">Inspection date</span> ${h.date||'—'}</div>
+      <div><span style="color:var(--ink-soft)">Inspector</span> ${h.inspector||'—'}</div>
+      <div><span style="color:var(--ink-soft)">Verification type</span> ${h.mode==='initial'?'Initial verification':'In-service inspection'}</div>
+      <div><span style="color:var(--ink-soft)">Manufacturer / Model</span> ${h.manufacturer||'—'} / ${h.model||'—'}</div>
+      <div><span style="color:var(--ink-soft)">Serial number</span> ${h.serial||'—'}</div>
+      <div><span style="color:var(--ink-soft)">Accuracy class</span> Class ${h.accClass}</div>
+      <div><span style="color:var(--ink-soft)">Max / e / d / Min</span> ${h.max||'—'} / ${h.e||'—'} / ${h.d||'—'} / ${h.min||'—'} kg</div>
+    </div>
+
+    <div class="text-sm font-semibold mb-2 mt-6">Weighing performance</div>
+    <table class="mb-6"><thead><tr><th>Point</th><th>Target</th><th>Ind. ↑</th><th>Ind. ↓</th><th>Err ↑</th><th>Err ↓</th><th>MPE</th><th>Status</th></tr></thead>
+    <tbody>${w.map(r=>{ const raw = state.weighing.find(x=>x.id===(r.primaryRawId||r.id)) || {indInc:'',indDec:''}; return `<tr><td>${r.label}</td><td class="mono text-center">${fmtFixed(r.target,3)}</td><td class="mono text-center">${fmtFixed(raw.indInc,3)}</td><td class="mono text-center">${fmtFixed(raw.indDec,3)}</td><td class="mono text-center">${fmtFixed(r.errInc,4)}</td><td class="mono text-center">${fmtFixed(r.errDec,4)}</td><td class="mono text-center">${r.mpeInfo?'±'+fmtFixed(r.mpeInfo.mpe,4):'—'}</td>${statusCell(r.status)}</tr>`; }).join('')}</tbody></table>
+
+    <div class="text-sm font-semibold mb-2">Eccentricity</div>
+    <table class="mb-6"><thead><tr><th>Position</th><th>Target</th><th>Indication</th><th>Error</th><th>MPE</th><th>Status</th></tr></thead>
+    <tbody>${ecc.map(r=>`<tr><td>${r.label}</td><td class="mono text-center">${fmtFixed(r.target,3)}</td><td class="mono text-center">${fmtFixed(r.indication,3)}</td><td class="mono text-center">${r.isRef?'—':fmtFixed(r.err,4)}</td><td class="mono text-center">${r.mpeInfo && !r.isRef?'±'+fmtFixed(r.mpeInfo.mpe,4):'—'}</td>${r.isRef?'<td class="text-center status-pending">REF</td>':statusCell(r.status)}</tr>`).join('')}</tbody></table>
+
+    <div class="text-sm font-semibold mb-2">Repeatability</div>
+    <table class="mb-6"><thead><tr><th>Load point</th><th>Target</th><th>Readings (n)</th><th>Max−Min</th><th>MPE</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>≈ 50% Max</td><td class="mono text-center">${fmtFixed(r50.target,3)}</td><td class="mono text-center">${r50.vals.length}</td><td class="mono text-center">${fmtFixed(r50.range,4)}</td><td class="mono text-center">${r50.mpeInfo?'±'+fmtFixed(r50.mpeInfo.mpe,4):'—'}</td>${statusCell(r50.status)}</tr>
+      <tr><td>≈ 100% Max</td><td class="mono text-center">${fmtFixed(r100.target,3)}</td><td class="mono text-center">${r100.vals.length}</td><td class="mono text-center">${fmtFixed(r100.range,4)}</td><td class="mono text-center">${r100.mpeInfo?'±'+fmtFixed(r100.mpeInfo.mpe,4):'—'}</td>${statusCell(r100.status)}</tr>
+    </tbody></table>
+
+    <div class="grid grid-cols-2 gap-8 mt-10 text-xs">
+      <div class="pt-8 border-t" style="border-color:var(--line);">Inspector signature</div>
+      <div class="pt-8 border-t" style="border-color:var(--line);">Date</div>
+    </div>
+  </div>`;
+}
+
+function getFocusSelector(el){
+  if(!el || !el.dataset) return null;
+  const d = el.dataset;
+  if(d.field) return `[data-field="${d.field}"][data-group="${d.group||''}"]`;
+  if(d.wId) return `[data-w-field="${d.wField}"][data-w-id="${d.wId}"]`;
+  if(d.eId) return `[data-e-field="${d.eField}"][data-e-id="${d.eId}"]`;
+  if(d.repPoint && d.repField) return `[data-rep-field="${d.repField}"][data-rep-point="${d.repPoint}"]`;
+  if(d.repPoint && d.repIdx !== undefined) return `[data-rep-point="${d.repPoint}"][data-rep-idx="${d.repIdx}"]`;
+  return null;
+}
+
+function rerenderPreserveFocus(){
+  const active = document.activeElement;
+  const selector = getFocusSelector(active);
+  const selStart = active && typeof active.selectionStart === 'number' ? active.selectionStart : null;
+  const selEnd = active && typeof active.selectionEnd === 'number' ? active.selectionEnd : null;
+  render();
+  if(selector){
+    const again = app.querySelector(selector);
+    if(again){
+      again.focus();
+      if(selStart !== null && again.setSelectionRange){
+        try{ again.setSelectionRange(selStart, selEnd); }catch(e){}
+      }
+    }
+  }
+}
+
+function attachHandlers(){
+  app.querySelectorAll('[data-tab]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{ activeTab = btn.dataset.tab; render(); });
+  });
+
+  app.querySelectorAll('[data-field]').forEach(el=>{
+    el.addEventListener('input', ()=>{
+      const group = el.dataset.group;
+      const name = el.dataset.field;
+      let val = el.value;
+      if(el.dataset.numeric){
+        val = sanitizeDecimal(val);
+        if(val !== el.value) el.value = val;
+      }
+      if(group==='header') state.header[name] = val;
+      rerenderPreserveFocus();
+    });
+  });
+
+  app.querySelectorAll('[data-w-field]').forEach(el=>{
+    el.addEventListener('input', ()=>{
+      const id = el.dataset.wId;
+      const fieldName = el.dataset.wField;
+      const row = state.weighing.find(r=>r.id===id);
+      if(!row) return;
+      let val = el.value;
+      if(el.dataset.numeric){ val = sanitizeDecimal(val); if(val!==el.value) el.value = val; }
+      row[fieldName] = val;
+      rerenderPreserveFocus();
+    });
+  });
+
+  app.querySelectorAll('[data-action="delWeighRow"]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      state.weighing = state.weighing.filter(r=>r.id!==btn.dataset.wId);
+      render();
+    });
+  });
+
+  const addRowBtn = app.querySelector('[data-action="addWeighRow"]');
+  if(addRowBtn){
+    addRowBtn.addEventListener('click', ()=>{
+      state.weighing.push({ id: uid(), label:'Custom load', targetMode:'custom', target:'', indInc:'', indDec:'' });
+      render();
+    });
+  }
+
+  app.querySelectorAll('[data-e-field]').forEach(el=>{
+    el.addEventListener('input', ()=>{
+      const id = el.dataset.eId;
+      const fieldName = el.dataset.eField;
+      const row = state.eccentricity.find(r=>r.id===id);
+      if(!row) return;
+      let val = el.value;
+      if(el.dataset.numeric){ val = sanitizeDecimal(val); if(val!==el.value) el.value = val; }
+      row[fieldName] = val;
+      rerenderPreserveFocus();
+    });
+  });
+
+  app.querySelectorAll('[data-rep-field]').forEach(el=>{
+    el.addEventListener('input', ()=>{
+      const key = el.dataset.repPoint;
+      const fieldName = el.dataset.repField;
+      let val = el.value;
+      if(el.dataset.numeric){ val = sanitizeDecimal(val); if(val!==el.value) el.value = val; }
+      state.repeatability[key][fieldName] = val;
+      rerenderPreserveFocus();
+    });
+  });
+
+  app.querySelectorAll('[data-rep-point][data-rep-idx]').forEach(el=>{
+    el.addEventListener('input', ()=>{
+      const key = el.dataset.repPoint;
+      const idx = Number(el.dataset.repIdx);
+      let val = sanitizeDecimal(el.value);
+      if(val !== el.value) el.value = val;
+      state.repeatability[key].readings[idx] = val;
+      rerenderPreserveFocus();
+    });
+  });
+
+  const printBtn = app.querySelector('[data-action="print"]');
+  if(printBtn) printBtn.addEventListener('click', ()=>window.print());
+
+  const newBtn = app.querySelector('[data-action="new"]');
+  if(newBtn) newBtn.addEventListener('click', ()=>{
+    if(confirm('Reset all inspection form fields?')){
+      state = freshState();
+      activeTab = 'setup';
+      render();
+    }
+  });
+}
+
+function focusableFields(){
+  return Array.from(app.querySelectorAll('input, select'))
+    .filter(el => !el.disabled && el.offsetParent !== null);
+}
+
+function handleAppKeydown(e){
+  if(e.key !== 'Enter') return;
+  const tag = e.target.tagName;
+  if(tag !== 'INPUT' && tag !== 'SELECT') return;
+  e.preventDefault();
+  const fields = focusableFields();
+  const idx = fields.indexOf(e.target);
+  if(idx === -1) return;
+  const next = fields[idx + 1];
+  if(next){
+    next.focus();
+    if(typeof next.select === 'function') next.select();
+  } else {
+    e.target.blur();
+  }
+}
+app.addEventListener('keydown', handleAppKeydown);
+
+render();
+</script>
+</body>
+</html>
