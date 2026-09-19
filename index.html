@@ -468,6 +468,13 @@ function clampReadingsCount(n){
   return Math.max(3, Math.min(10, Math.round(num)));
 }
 
+// OIML R76-1:2006 verification repeatability requirement: one series at
+// about 0.8 x Max is sufficient. Class III/IIII require 3 weighings;
+// Class I/II require 6 weighings.
+function requiredRepeatReadings(accClass){
+  return (accClass === 'I' || accClass === 'II') ? 6 : 3;
+}
+
 function freshState(){
   return {
     id: uid(),
@@ -480,8 +487,7 @@ function freshState(){
     weighing: defaultWeighingRows(),
     eccentricity: defaultEccRows(),
     repeatability: {
-      p50: { load: '', n: '5', readings: Array(10).fill('') },
-      p100: { load: '', n: '5', readings: Array(10).fill('') },
+      p80: { load: '', readings: Array(10).fill('') },
     },
   };
 }
@@ -575,7 +581,7 @@ function evalEccentricity(){
 
 function evalRepeat(point){
   const h = state.header;
-  const n = clampReadingsCount(point.n);
+  const n = requiredRepeatReadings(h.accClass);
   const target = parseNum(point.load);
   const mpeInfo = computeMPE(h.accClass, target, h.e, h.mode);
   const vals = point.readings.slice(0, n).map(parseNum).filter(v => v !== null);
@@ -587,55 +593,50 @@ function evalRepeat(point){
   return { target, mpeInfo, vals, range, status, n };
 }
 
-const WEIGHING_MERGE_PAIRS = [
-  ['e500', 'half'],   // "500 e" collapses into "50% Max" when they coincide
-  ['e2000', 'full'],  // "2000 e" collapses into "100% Max" when they coincide
-];
-
-function mergeRowPairForDisplay(rows, modeA, modeB){
-  const rowA = rows.find(r=>r.targetMode===modeA);
-  const rowB = rows.find(r=>r.targetMode===modeB);
-  if(!rowA || !rowB) return rows;
-
-  const sameTarget = rowA.target !== null && rowB.target !== null &&
-    Math.abs(rowA.target - rowB.target) < 1e-9;
-  if(!sameTarget) return rows;
-
-  const rawA = state.weighing.find(x=>x.id===rowA.id);
-  const rawB = state.weighing.find(x=>x.id===rowB.id);
-  const bHasData = !!rawB && (rawB.indInc !== '' || rawB.indDec !== '');
-  const aHasData = !!rawA && (rawA.indInc !== '' || rawA.indDec !== '');
-  // Prefer whichever row already has readings entered, defaulting to rowB
-  // (the higher-order test point) so its evaluation is what's shown.
-  const evalSource = (bHasData || !aHasData) ? rowB : rowA;
-
-  const mergedRow = {
-    ...evalSource,
-    id: rowB.id,
-    label: `${rowA.label} = ${rowB.label}`,
-    merged: true,
-    mergeNote: `${rowA.label} coincides with ${rowB.label} — combined row`,
-    primaryRawId: evalSource.id,
-  };
-
-  return rows
-    .filter(r => r.id !== rowA.id)
-    .map(r => r.id === rowB.id ? mergedRow : r);
-}
-
 function mergeWeighingRowsForDisplay(rows){
-  // Two test points that resolve to the same load (e.g. 500e >= 50% Max, or
-  // 2000e >= Max) represent the exact same physical test. Collapse each such
-  // pair into a single displayed row; pairs that differ stay separate.
-  return WEIGHING_MERGE_PAIRS.reduce((acc, [a,b]) => mergeRowPairForDisplay(acc, a, b), rows);
+  // Any two (or more) test points that resolve to the same load coincide as
+  // the exact same physical test and must be shown once. This happens under
+  // OIML R76 test sequencing whenever a fractional point (500e, 2000e) equals
+  // — or is capped to — 50% Max or 100% Max. For example, on a low-capacity
+  // instrument 500e can itself exceed Max, in which case it is capped to Max
+  // and coincides with the "100% Max" row, not "50% Max". Grouping by the
+  // resolved target value (rather than fixed pairs) catches every such case.
+  const groups = [];
+  rows.forEach(row => {
+    if(row.target === null){ groups.push([row]); return; }
+    const existing = groups.find(g => g[0].target !== null && Math.abs(g[0].target - row.target) < 1e-9);
+    if(existing) existing.push(row);
+    else groups.push([row]);
+  });
+
+  return groups.map(group => {
+    if(group.length === 1) return group[0];
+
+    // Prefer whichever row in the group already has readings entered;
+    // otherwise prefer the highest-order (last) test point in the group so
+    // its evaluation is what's shown.
+    const withData = group.filter(r => {
+      const raw = state.weighing.find(x=>x.id===r.id);
+      return raw && (raw.indInc !== '' || raw.indDec !== '');
+    });
+    const evalSource = withData.length ? withData[withData.length-1] : group[group.length-1];
+
+    return {
+      ...evalSource,
+      id: evalSource.id,
+      label: group.map(r=>r.label).join(' = '),
+      merged: true,
+      mergeNote: group.map(r=>r.label).join(' coincides with ') + ' — combined row',
+      primaryRawId: evalSource.id,
+    };
+  });
 }
 
 function overallStatus(){
   const w = mergeWeighingRowsForDisplay(evalWeighing());
   const ecc = evalEccentricity().filter(r=>!r.isRef);
-  const r50 = evalRepeat(state.repeatability.p50);
-  const r100 = evalRepeat(state.repeatability.p100);
-  const all = [...w, ...ecc, r50, r100];
+  const r80 = evalRepeat(state.repeatability.p80);
+  const all = [...w, ...ecc, r80];
   const anyFail = all.some(r=>r.status==='fail');
   const anyPending = all.some(r=>r.status==='pending');
   const anyEvaluated = all.some(r=>r.status==='pass' || r.status==='fail');
@@ -707,9 +708,8 @@ function tabCompletion(){
   const weighingDone = w.length > 0 && w.every(r=>r.status!=='pending');
   const ecc = evalEccentricity().filter(r=>!r.isRef);
   const eccentricityDone = ecc.length > 0 && ecc.every(r=>r.status!=='pending');
-  const r50 = evalRepeat(state.repeatability.p50);
-  const r100 = evalRepeat(state.repeatability.p100);
-  const repeatabilityDone = r50.status!=='pending' && r100.status!=='pending';
+  const r80 = evalRepeat(state.repeatability.p80);
+  const repeatabilityDone = r80.status!=='pending';
   return { setup:setupDone, weighing:weighingDone, eccentricity:eccentricityDone, repeatability:repeatabilityDone, report:false };
 }
 
@@ -888,8 +888,7 @@ function renderEccentricity(){
 function renderRepeatPoint(key, title, defaultLoad){
   const point = state.repeatability[key];
   const r = evalRepeat(point);
-  const nRaw = point.n;
-  const nCells = Math.max(1, Math.min(10, parseNum(nRaw) || 5));
+  const nCells = r.n;
   let cells = '';
   for(let i=0; i<10; i++){
     if(i < nCells){
@@ -903,8 +902,7 @@ function renderRepeatPoint(key, title, defaultLoad){
       <div class="flex items-center gap-3">
         <label class="field-label mb-0">Target load (kg)</label>
         <input style="width:110px" type="text" inputmode="decimal" data-numeric="1" data-rep-field="load" data-rep-point="${key}" value="${point.load}" placeholder="${defaultLoad}">
-        <label class="field-label mb-0">Readings (3–10)</label>
-        <input style="width:70px" type="text" inputmode="numeric" data-numeric="1" data-rep-field="n" data-rep-point="${key}" value="${nRaw}">
+        <span class="field-label mb-0">Readings required: <strong class="mono">${nCells}</strong> (Class ${state.header.accClass})</span>
       </div>
     </div>
     <div class="overflow-x-auto">
@@ -923,13 +921,12 @@ function renderRepeatPoint(key, title, defaultLoad){
 
 function renderRepeatability(){
   const max = parseNum(state.header.max);
-  const half = max ? (max*0.5).toFixed(3) : '';
-  const full = max ? max.toFixed(3) : '';
+  const target8 = max ? (max*0.8).toFixed(3) : '';
+  const required = requiredRepeatReadings(state.header.accClass);
   return `
   <div class="mb-3 pb-3 section-heading"><span class="section-num">6</span> <span class="text-sm font-semibold">Repeatability</span></div>
-  <div class="text-xs mb-4" style="color:var(--ink-soft);">Take 3 to 10 consecutive readings at the same load without removing it. The spread (max − min) must not exceed the MPE for that load.</div>
-  ${renderRepeatPoint('p50', 'Repeatability at ≈ 50% Max', half)}
-  ${renderRepeatPoint('p100', 'Repeatability at ≈ 100% Max', full)}
+  <div class="text-xs mb-4" style="color:var(--ink-soft);">Per OIML R 76-1 verification procedure: one series of consecutive readings at about 0.8 × Max, without removing the load between readings, is sufficient. ${required} readings are required for Class ${state.header.accClass} (3 for Class III/IIII, 6 for Class I/II). The spread (max − min) must not exceed the MPE for that load.</div>
+  ${renderRepeatPoint('p80', 'Repeatability at ≈ 0.8 Max', target8)}
   `;
 }
 
@@ -937,8 +934,7 @@ function renderReport(){
   const h = state.header;
   const w = mergeWeighingRowsForDisplay(evalWeighing());
   const ecc = evalEccentricity();
-  const r50 = evalRepeat(state.repeatability.p50);
-  const r100 = evalRepeat(state.repeatability.p100);
+  const r80 = evalRepeat(state.repeatability.p80);
   const st = overallStatus();
   const bannerClass = st==='pass' ? 'status-pass' : st==='fail' ? 'status-fail' : 'status-pending';
   const bannerText = st==='pass' ? 'PASSED' : st==='fail' ? 'FAILED' : st==='partial' ? 'INCOMPLETE' : 'NOT EVALUATED';
@@ -985,10 +981,9 @@ function renderReport(){
     <tbody>${ecc.map(r=>`<tr><td>${r.label}</td><td class="mono text-center">${fmtFixed(r.target,3)}</td><td class="mono text-center">${fmtFixed(r.indication,3)}</td><td class="mono text-center">${r.isRef?'—':fmtFixed(r.err,4)}</td><td class="mono text-center">${r.mpeInfo && !r.isRef?'±'+fmtFixed(r.mpeInfo.mpe,4):'—'}</td>${r.isRef?'<td class="text-center status-pending">REF</td>':statusCell(r.status)}</tr>`).join('')}</tbody></table>
 
     <div class="text-sm font-semibold mb-2">Repeatability</div>
-    <table class="mb-6"><thead><tr><th>Load point</th><th>Target</th><th>Readings (n)</th><th>Max−Min</th><th>MPE</th><th>Status</th></tr></thead>
+    <table class="mb-6"><thead><tr><th>Load point</th><th>Target</th><th>Readings required</th><th>Readings taken</th><th>Max−Min</th><th>MPE</th><th>Status</th></tr></thead>
     <tbody>
-      <tr><td>≈ 50% Max</td><td class="mono text-center">${fmtFixed(r50.target,3)}</td><td class="mono text-center">${r50.vals.length}</td><td class="mono text-center">${fmtFixed(r50.range,4)}</td><td class="mono text-center">${r50.mpeInfo?'±'+fmtFixed(r50.mpeInfo.mpe,4):'—'}</td>${statusCell(r50.status)}</tr>
-      <tr><td>≈ 100% Max</td><td class="mono text-center">${fmtFixed(r100.target,3)}</td><td class="mono text-center">${r100.vals.length}</td><td class="mono text-center">${fmtFixed(r100.range,4)}</td><td class="mono text-center">${r100.mpeInfo?'±'+fmtFixed(r100.mpeInfo.mpe,4):'—'}</td>${statusCell(r100.status)}</tr>
+      <tr><td>≈ 0.8 Max</td><td class="mono text-center">${fmtFixed(r80.target,3)}</td><td class="mono text-center">${r80.n}</td><td class="mono text-center">${r80.vals.length}</td><td class="mono text-center">${fmtFixed(r80.range,4)}</td><td class="mono text-center">${r80.mpeInfo?'±'+fmtFixed(r80.mpeInfo.mpe,4):'—'}</td>${statusCell(r80.status)}</tr>
     </tbody></table>
 
     <div class="grid grid-cols-2 gap-8 mt-10 text-xs">
